@@ -2,7 +2,7 @@
 Robotic Artist - Final Project for Introduction to Robotics (CSCI 445) 
 
 ## Group Members
-- Hightower, James, Richard
+- Hightower, James, Richard [@neuvo](https://github.com/neuvo)
 - Wang, Jonathan, Z [@JWangatang](https://github.com/JWangatang)
 - Wenner, Matthew, Asao [@mattwenner](https://github.com/mattwenner)
 
