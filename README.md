@@ -1,5 +1,5 @@
 # final-project-445
-[![Language: Python 3.6.5](https://img.shields.io/pypi/pyversions/Django.svg)](https://docs.python.org/3/)  [![Language: Python 3.6.5](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
+[![Language: Python 3.6.5](https://img.shields.io/pypi/pyversions/Django.svg)](https://docs.python.org/3/)  [![License MIT](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
 
 Robotic Artist - Final Project for Introduction to Robotics (CSCI 445) 
 
