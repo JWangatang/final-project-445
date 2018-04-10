@@ -59,23 +59,6 @@ class Run:
             create2.Sensor.RightEncoderCounts,
         ])
 
-        # Array of Waypoints in the lines to be drawn
-        lines = []
-
-        # Process image, add points
-        for path in self.img.paths:
-            color = color_dict[path.color]
-            lines.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
-            # Bezier curves
-            for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
-                    # print(path.eval(i,t*0.1))
-                    lines.append(Waypoint(curr_point[0], curr_point[1], color, True))
-
-        # Points for the robot to travel to
-        waypoints = []
-
         # Alpha value for Complementary Filtering
         alpha = .7
 
@@ -84,16 +67,30 @@ class Run:
         y = self.odometry.y
         theta = self.odometry.theta
 
+        # Points for the robot to travel to
+        waypoints = []
+
+        # Process image, add points
+        for path in self.img.paths:
+            color = color_dict[path.color]
+            waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
+            # Bezier curves
+            for i in range(len(path.beziers)):
+                for t in range(1, 10):
+                    curr_point = path.eval(i, t*0.1)
+                    # print(path.eval(i,t*0.1))
+                    waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
+
         # Decompose lines into waypoints
         for line in self.img.lines:
             color = color_dict[line.color]
-            start_point = Waypoint(line.u[0], line.u[1], color, False)
-            end_point = Waypoint(line.v[0], line.v[1], color, True)
-            # lines.append(Waypoint(line.u[0], line.u[1], color, False))
-            # lines.append(Waypoint(line.v[0], line.v[1], color, True))
-            alt_lines = self.alt_lines(start_point, end_point)
-            waypoints.append(alt_lines[0][0])
-            waypoints.append(alt_lines[0][1])
+            # start_point = Waypoint(line.u[0], line.u[1], color, False)
+            # end_point = Waypoint(line.v[0], line.v[1], color, True)
+            # alt_lines = self.alt_lines(start_point, end_point)
+            # waypoints.append(alt_lines[0][0])
+            # waypoints.append(alt_lines[0][1])
+            waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
+            waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
 
         #
         for point in waypoints:
