@@ -41,73 +41,79 @@ class Run:
             create2.Sensor.LeftEncoderCounts,
             create2.Sensor.RightEncoderCounts,
         ])
-
-        self.penholder.set_color(0.0, 0.0, 0.0)
         
-        lines = []
+        # Points for the robot to travel to
+        waypoints = []
 
-
+        # Alpha value for Complementary Filtering
         alpha = .7
 
+        # Keep 
+        x = self.odometry.x
+        y = self.odometry.y
+        theta = self.odometry.theta
+
+        # Decompose lines into waypoints
         for line in self.img.lines:
             color = None
             if line.color == "black":
                 color = (0.0, 0.0, 0.0)
             elif line.color == "green":
                 color = (0.0, 1.0, 0.0)
-            # elif line.color == "blue":
-            #     color = (0.0, 0.0, 1.0)
-            # elif line.color == "red":
-            #     color = (1.0, 0.0, 0.0)
+            elif line.color == "blue":
+                color = (0.0, 0.0, 1.0)
+            elif line.color == "red":
+                color = (1.0, 0.0, 0.0)
 
-            lines.append(Waypoint(line.u[0], line.u[1], color, False))
-            lines.append(Waypoint(line.v[0], line.v[1], color, True))
-            # if line.color == "black":
-            #     black
-            #     black_lines.append((line.u[0], line.u[1], False, "black"))
-            #     black_lines.append((line.v[0], line.v[1], True, "black"))
-            #     print(line.u, line.v, line.color)
+            waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
+            waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
 
-            # elif line.color == "green":
-            #     green_lines.append((line.u[0], line.u[1], False, "green"))
-            #     green_lines.append(((line.v[0], line.v[1], True, "green")))
-
-        for point in lines:
+        for point in waypoints:
             turn_time = self.time.time() + 2
             color = point.color
-
             self.penholder.set_color(color[0], color[1], color[2])
-            self.penholder.raise_pen()
-            print("go to:", point.x, point.y, "with color", color)
+            self.raise_pen()
+
             while True:
+
+                # Try to take an odometry reading
                 state = self.create.update()
+
+                # Try to take a camera reading
                 r = self.tracker.query()
                 if state is not None:
+
+                    # Update the odometry
                     self.odometry.update(state.leftEncoderCounts, state.rightEncoderCounts)
-                    x = self.odometry.x
-                    y = self.odometry.y
-                    theta = self.odometry.theta
+                    x += self.odometry.delta_d * math.cos(self.odometry.last_theta)
+                    y += self.odometry.delta_d * math.sin(self.odometry.last_theta)
+                    theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
+
+                    # Complementary Filter with the camera reading
                     if r is not None:
-                        x = alpha * self.odometry.x + (1 - alpha) * r["position"]["x"]
-                        y = alpha * self.odometry.y + (1 - alpha) * r["position"]["y"]
-                        theta = alpha * self.odometry.theta  + (1 - alpha) * r["orientation"]["y"]
+                        x *= alpha
+                        y *= alpha
+                        theta *= alpha
+
+                        x += (1 - alpha) * r["position"]["x"]
+                        y += (1 - alpha) * r["position"]["y"]
+                        theta += (1 - alpha) * r["orientation"]["y"]
+
+
+                    # Calculate the desired angle so the robot faces the goal
                     goal_theta = math.atan2(point.y - y, point.x - x)
-                    # theta = math.atan2(math.sin(self.odometry.theta), math.cos(self.odometry.theta))
-                    # print("[{},{},{}]".format(self.odometry.x, self.odometry.y, math.degrees(self.odometry.theta)))
 
                     output_theta = self.pidTheta.update(theta, goal_theta, self.time.time())
-                    # if output_theta > 180:
-                    #     output_theta = 180
-                    # elif output_theta < -180:
-                    #     output_theta = -180
 
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
+
+                    # Check to see if we are close enough to our goal
                     if distance < 0.02:
-                        # print(self.time.time())
                         print("[{},{},{}]".format(x, y, math.degrees(theta)))
                         break
 
-                    if (turn_time > self.time.time()):
+                    # Take the first two seconds of every waypoint to orient towards the goal
+                    if turn_time > self.time.time():
                         self.create.drive_direct(int(output_theta), int(-output_theta));
                         self.time.sleep(.001);
                         continue;
@@ -120,8 +126,11 @@ class Run:
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
 
                     self.create.drive_direct(int(output_theta + output_distance), int(-output_theta + output_distance))
+
                     self.time.sleep(.01)
 
+        while True:
+            continue
         self.create.stop()
 
     def raise_pen(self):
