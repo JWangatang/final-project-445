@@ -77,7 +77,7 @@ class Run:
             color = point.color
 
             self.penholder.set_color(color[0], color[1], color[2])
-            self.penholder.go_to(0.0)
+            self.penholder.raise_pen()
             print("go to:", point.x, point.y, "with color", color)
             while True:
                 state = self.create.update()
@@ -113,9 +113,9 @@ class Run:
                         continue;
                     else:
                         if point.use_pen:
-                            self.penholder.go_to(-0.025)
+                            self.lower_pen()
                         else:
-                            self.penholder.go_to(0.0)
+                            self.raise_pen()
 
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
 
