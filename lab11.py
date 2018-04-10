@@ -24,7 +24,6 @@ class Waypoint:
         self.color = color
         self.use_pen = use_pen
 
-
 class Run:
     def __init__(self, factory):
         """Constructor.
@@ -88,8 +87,13 @@ class Run:
         # Decompose lines into waypoints
         for line in self.img.lines:
             color = color_dict[line.color]
-            lines.append(Waypoint(line.u[0], line.u[1], color, False))
-            lines.append(Waypoint(line.v[0], line.v[1], color, True))
+            start_point = Waypoint(line.u[0], line.u[1], color, False)
+            end_point = Waypoint(line.v[0], line.v[1], color, True)
+            # lines.append(Waypoint(line.u[0], line.u[1], color, False))
+            # lines.append(Waypoint(line.v[0], line.v[1], color, True))
+            alt_lines = self.alt_lines(start_point, end_point)
+            waypoints.append(alt_lines[0][0])
+            waypoints.append(alt_lines[0][1])
 
         #
         for point in waypoints:
@@ -165,3 +169,109 @@ class Run:
 
     def closest_point(self):
         pass
+
+    # returns two alternate lines, given a line
+    # if the robot follows either of the alternate lines, the pen will trace the original line
+    def alt_lines(self, start_point, end_point):
+        # radius of robot
+        d = 348.5/2/1000
+
+        # there are two possible lines that trace the original line, hereby referred to as plusle and minun
+        # If m0 > 0, then plusle has the same direction as the original line
+        # If m0 < 0, then plusle has the opposite direction as the original line
+        # If m0 = 0 or infinity, then we have a special case
+
+        x0 = start_point.x
+        y0 = start_point.y
+
+        m1 = 0 # default value assumes vertical line
+        if (end_point.x == start_point.x and end_point.y == start_point.y):
+            return None
+        elif (end_point.x == start_point.x):  # check for vertical line
+            m1 = 0
+        elif (end_point.y == start_point.y):    # check for horizontal line
+            # no value of m1 makes sense, have to compute by hand
+            # perpendicular line is vertical: add or subtract to x, keep same y
+            x1_plus_start = x0 + d
+            x1_plus_end = x0 + d
+            y1_plus_start = max(start_point.y, end_point.y)
+            y1_plus_end = min(start_point.y, end_point.y)
+
+            x1_minus_start = x0 - d
+            x1_minus_end = x0 - d
+            y1_minus_start = y1_plus_end
+            y1_minus_end = y1_plus_start
+
+            plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
+            plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
+
+            minus_start_wp = Waypoint(x1_minus_start, y1_minus_start, start_point.color, False)
+            minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
+
+            return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
+
+        else:
+            m0 = float(end_point.y - start_point.y)/(end_point.x)-(start_point.x)
+            m1 = -1/m0
+
+        x1_plus_start = 0
+        x1_plus_end = 0
+        y1_plus_start = 0
+        y1_plus_end = 0
+        x1_minus_start = 0
+        x1_minus_end = 0
+        y1_minus_start = 0
+        y1_minus_end = 0
+
+        if m1 <= 0:
+            p0 = None
+            if (start_point.x < end_point.x):
+                p0 = start_point
+            else:
+                p0 = end_point
+
+            x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
+            y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
+            x1_minus_end = p0.x - d * math.sqrt(1/(1+m1**2))
+            y1_minus_end = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+
+            if (start_point.x < end_point.x):
+                p0 = end_point
+            else:
+                p0 = start_point
+            
+            x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
+            y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
+            x1_minus_start = p0.x - d * math.sqrt(1/(1+m1**2))
+            y1_minus_start = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+        else:
+            p0 = None
+            if (start_point.x < end_point.x):
+                p0 = start_point
+            else:
+                p0 = end_point
+
+            x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
+            y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
+            x1_minus_end = p0.x - d * math.sqrt(1/(1+m1**2))
+            y1_minus_end = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+
+            if (start_point.x < end_point.x):
+                p0 = end_point
+            else:
+                p0 = start_point
+            
+            x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
+            y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
+            x1_minus_start = p0.x - d * math.sqrt(1/(1+m1**2))
+            y1_minus_start = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+
+        plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
+        plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
+        minus_start_wp = Waypoint(x1_minus_start, y1_minus_start, start_point.color, False)
+        minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
+
+        print("Original line: (%f,%f)->(%f,%f)" % (start_point.x, start_point.y, end_point.x, end_point.y))
+        print("Plusle: (%f,%f)->(%f,%f)" % (plus_start_wp.x, plus_start_wp.y, plus_end_wp.x, plus_end_wp.y))
+
+        return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
