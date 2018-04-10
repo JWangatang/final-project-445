@@ -33,6 +33,9 @@ class Run:
         self.tracker = factory.create_tracker(1, sd_x=0.01, sd_y=0.01, sd_theta=0.01, rate=10)
 
     def run(self):
+
+        color_dict = { "black":(0.0, 0.0, 0.0), "red":(1.0,0.0,0.0), "green":(0.0,1.0,0.0), "blue":(0.0,0.0,1.0) }
+
         self.create.start()
         self.create.safe()
 
@@ -46,38 +49,33 @@ class Run:
         
         lines = []
 
+        print("Found %d paths" % len(self.img.paths))
+        for path in self.img.paths:
+            print("Found %d beziers" % len(path.beziers))
+            color = color_dict[path.color]
+            lines.append(Waypoint(path.get_start()[0],path.get_start()[1], color, False))
+            for i in range(len(path.beziers)):
+                for t in range(1,10):
+                    curr_point = path.eval(i,t*0.1)
+                    # print(path.eval(i,t*0.1))
+                    lines.append(Waypoint(curr_point[0],curr_point[1],color,True))
+            # lines.append(Waypoint(path.get_start()[0],path.get_start()[1], color, False))
+            # lines.append(Waypoint(path.get_end()[0], path.get_end()[1], color, True))
 
         alpha = .7
 
         for line in self.img.lines:
-            color = None
-            if line.color == "black":
-                color = (0.0, 0.0, 0.0)
-            elif line.color == "green":
-                color = (0.0, 1.0, 0.0)
-            # elif line.color == "blue":
-            #     color = (0.0, 0.0, 1.0)
-            # elif line.color == "red":
-            #     color = (1.0, 0.0, 0.0)
+            color = color_dict[line.color]
 
             lines.append(Waypoint(line.u[0], line.u[1], color, False))
             lines.append(Waypoint(line.v[0], line.v[1], color, True))
-            # if line.color == "black":
-            #     black
-            #     black_lines.append((line.u[0], line.u[1], False, "black"))
-            #     black_lines.append((line.v[0], line.v[1], True, "black"))
-            #     print(line.u, line.v, line.color)
-
-            # elif line.color == "green":
-            #     green_lines.append((line.u[0], line.u[1], False, "green"))
-            #     green_lines.append(((line.v[0], line.v[1], True, "green")))
 
         for point in lines:
             turn_time = self.time.time() + 2
             color = point.color
 
             self.penholder.set_color(color[0], color[1], color[2])
-            self.penholder.raise_pen()
+            self.raise_pen()
             print("go to:", point.x, point.y, "with color", color)
             while True:
                 state = self.create.update()
@@ -87,11 +85,12 @@ class Run:
                     x = self.odometry.x
                     y = self.odometry.y
                     theta = self.odometry.theta
-                    if r is not None:
-                        x = alpha * self.odometry.x + (1 - alpha) * r["position"]["x"]
-                        y = alpha * self.odometry.y + (1 - alpha) * r["position"]["y"]
-                        theta = alpha * self.odometry.theta  + (1 - alpha) * r["orientation"]["y"]
+                    # if r is not None:
+                    #     x = alpha * self.odometry.x + (1 - alpha) * r["position"]["x"]
+                    #     y = alpha * self.odometry.y + (1 - alpha) * r["position"]["y"]
+                    #     theta = alpha * self.odometry.theta  + (1 - alpha) * r["orientation"]["y"]
                     goal_theta = math.atan2(point.y - y, point.x - x)
+                    # print("goal_theta = %f degrees" % math.degrees(goal_theta))
                     # theta = math.atan2(math.sin(self.odometry.theta), math.cos(self.odometry.theta))
                     # print("[{},{},{}]".format(self.odometry.x, self.odometry.y, math.degrees(self.odometry.theta)))
 

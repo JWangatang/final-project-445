@@ -61,7 +61,8 @@ class BezierPath:
         return self.eval(0, 0)
 
     def get_end(self):
-        return self.eval(self.num_segments()-1, self.get_length())
+        # return self.eval(self.num_segments()-1, self.get_length())
+        return self.eval(self.num_segments()-1, 1)
 
     def parse_path(self, path):
         result = []
