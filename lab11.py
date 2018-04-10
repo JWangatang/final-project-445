@@ -85,3 +85,17 @@ class Run:
                     self.time.sleep(.01)
 
         self.create.stop()
+
+    def raise_pen(self):
+        self.penholder.go_to(0.0)
+
+    def lower_pen(self):
+        self.penholder.go_to(-0.025)
+
+    # Returns True if obstacle is in the robot's path
+    def path_is_valid(self, start_point, end_point):
+        robot_width_mm = 348.5
+        pass
+
+    def closest_point(self):
+        pass
