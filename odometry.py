@@ -19,6 +19,10 @@ class Odometry:
         self.y = 0
         self.theta = 0
 
+        self.delta_d = 0
+        self.delta_theta = 0
+        self.last_theta = 0;
+
         self.last_left_encoder_counts = None
         self.last_right_encoder_counts = None
 
@@ -54,11 +58,13 @@ class Odometry:
             delta_l = c_l * n_l_actual
             delta_r = c_r * n_r_actual
 
-            delta_d = (delta_r + delta_l) / 2
-            delta_theta = (delta_r - delta_l) / self.w
+            self.delta_d = (delta_r + delta_l) / 2
+            self.delta_theta = (delta_r - delta_l) / self.w
+            self.last_theta = self.theta
 
-            self.x += delta_d * math.cos(self.theta)
-            self.y += delta_d * math.sin(self.theta)
-            self.theta = math.fmod(self.theta + delta_theta, 2 * math.pi)
+            self.x += self.delta_d * math.cos(self.theta)
+            self.y += self.delta_d * math.sin(self.theta)
+
+            self.theta = math.fmod(self.theta + self.delta_theta, 2 * math.pi)
         self.last_left_encoder_counts = left_encoder_counts
         self.last_right_encoder_counts = right_encoder_counts
