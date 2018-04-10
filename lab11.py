@@ -61,7 +61,7 @@ class Run:
         # Alpha value for Complementary Filtering
         alpha = .7
 
-        # Keep 
+        # Keep track globally and take into account camera reading when we get one
         x = self.odometry.x
         y = self.odometry.y
         theta = self.odometry.theta
