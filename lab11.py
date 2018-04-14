@@ -41,7 +41,7 @@ class Run:
 
         # Controllers for Odometry
         self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
+        self.pidDistance = pid_controller_soln.PIDController(900, 0, 50, [0, 0], [-200, 200], is_angle=False)
 
         # Pen Holder - raises and lowers pen
         self.penholder = factory.create_pen_holder()
@@ -60,8 +60,17 @@ class Run:
             create2.Sensor.RightEncoderCounts,
         ])
 
+        self.parse_obstacle()
+
+        start1 = Waypoint(.85, 0, None, False)
+        end1 = Waypoint(.85, 1, None, False)
+        start2 = Waypoint(.45, .1, None, False)
+        end2 = Waypoint(.85, .1, None, False)
+
+        print("Intersect Check:", self.intersects_with_obstacle(start1, end1), self.intersects_with_obstacle(start2, end2))
+
         # Alpha value for Complementary Filtering
-        alpha = .7
+        alpha = .3
 
         # Keep track globally and take into account camera reading when we get one
         x = self.odometry.x
@@ -88,7 +97,6 @@ class Run:
             waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
             waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
 
-        #
         for point in waypoints:
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + 2
@@ -130,10 +138,10 @@ class Run:
                         break
 
                     # Take the first two seconds of every waypoint to orient towards the goal
-                    if turn_time > self.time.time():
-                        self.create.drive_direct(int(output_theta), int(-output_theta));
-                        self.time.sleep(.001);
-                        continue;
+                    if turn_time > self.time.time() and abs(goal_theta - theta) > math.pi / 24:
+                        self.create.drive_direct(int(output_theta), int(-output_theta))
+                        self.time.sleep(.001)
+                        continue
                     else:
                         if point.use_pen:
                             self.lower_pen()
@@ -162,3 +170,38 @@ class Run:
 
     def closest_point(self):
         pass
+
+    def parse_obstacle(self):
+
+        # Info about the obstacle in meters
+        self.obstacle_center = (.85, .6)
+        self.obstacle_radius = .2
+
+    def intersects_with_obstacle(self, start_point, end_point):
+
+        # Create vector between intended destination and the starting position
+        endpoint_vec = (end_point.x - start_point.x, end_point.y - start_point.y)
+
+        # Create vector between obstacle center and the starting position
+        obstacle_vec = (self.obstacle_center[0] - start_point.x, self.obstacle_center[1] - start_point.y)
+
+        # Find the vector projection of the obstacle_vec on the endpoint_vec
+        scalar = (obstacle_vec[0] * endpoint_vec[0] + obstacle_vec[1] * endpoint_vec[1]) / (endpoint_vec[0] ** 2 + endpoint_vec[1] ** 2)
+        proj = tuple(scalar * x for x in endpoint_vec)
+
+        # Find the endpoint on the projection from the starting point
+        point = tuple([proj[0] + start_point.x, proj[1] + start_point.y])
+
+        # Calculate the distance between the projection endpoint and the center of the obstacle
+        dist = math.sqrt((point[1] - self.obstacle_center[1]) ** 2 + (point[0] - self.obstacle_center[0]) ** 2)
+
+        # Calculate the magnitude of the vector projection
+        endpoint_vec_mag = math.sqrt(endpoint_vec[0] ** 2 + endpoint_vec[1] ** 2)
+
+        # If the distance from the endpoint of the projection to the center of the obstacle is less than the radius and
+        # the magnitude of the projection is at least as big as the radius, then the line from the start point to the end
+        # point collides with the obstacle
+        if dist <= self.obstacle_radius and endpoint_vec_mag >= self.obstacle_radius:
+            return True
+        else:
+            return False
