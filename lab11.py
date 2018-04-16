@@ -173,10 +173,10 @@ class Run:
         # radius of robot
         d = 348.5/2/1000
 
-        # there are two possible lines that trace the original line, hereby referred to as plusle and minun
-        # If m0 > 0, then plusle has the same direction as the original line
-        # If m0 < 0, then plusle has the opposite direction as the original line
-        # If m0 = 0 or infinity, then we have a special case
+        # there are two possible lines (plus_line, min_line) that trace the original line (og_line)
+        # plus_line always starts at the "top" of og_line
+        # min_line always starts at the "bottom" of og_line
+        # if og_line is horizontal, plus_line starts at the left of og_line, min_line at the right
 
         x0 = start_point.x
         y0 = start_point.y
