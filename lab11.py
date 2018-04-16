@@ -9,6 +9,8 @@ import odometry
 import pid_controller_soln
 import math
 
+from PIL import Image, ImageDraw
+
 # Pen Color RGB Values
 color_dict = {"black": (0.0, 0.0, 0.0),
               "red": (1.0, 0.0, 0.0),
@@ -23,6 +25,7 @@ class Waypoint:
         self.y = y
         self.color = color
         self.use_pen = use_pen
+        self.point = (x,y)
 
 class Run:
     def __init__(self, factory):
@@ -71,26 +74,55 @@ class Run:
         waypoints = []
 
         # Process image, add points
-        for path in self.img.paths:
-            color = color_dict[path.color]
-            waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
-            # Bezier curves
-            for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
-                    # print(path.eval(i,t*0.1))
-                    waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
+        # for path in self.img.paths:
+        #     color = color_dict[path.color]
+        #     waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
+        #     # Bezier curves
+        #     for i in range(len(path.beziers)):
+        #         for t in range(1, 10):
+        #             curr_point = path.eval(i, t*0.1)
+        #             # print(path.eval(i,t*0.1))
+        #             waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
 
         # Decompose lines into waypoints
+        im = Image.new('RGB',(512,512))
+        im_draw = ImageDraw.Draw(im)
+
         for line in self.img.lines:
             color = color_dict[line.color]
-            # start_point = Waypoint(line.u[0], line.u[1], color, False)
-            # end_point = Waypoint(line.v[0], line.v[1], color, True)
-            # alt_lines = self.alt_lines(start_point, end_point)
-            # waypoints.append(alt_lines[0][0])
-            # waypoints.append(alt_lines[0][1])
-            waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
-            waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
+            start_point = Waypoint(line.u[0], line.u[1], color, False)
+            end_point = Waypoint(line.v[0], line.v[1], color, True)
+            alt_lines = self.alt_lines(start_point, end_point)
+            waypoints.append(alt_lines[0][0])
+            waypoints.append(alt_lines[0][1])
+            # waypoints.append(alt_lines[1][0])
+            # waypoints.append(alt_lines[1][1])
+
+            scale = 100
+            shift = 100
+            p0 = alt_lines[0][0].point
+            p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+
+            p1 = alt_lines[0][1].point
+            p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
+            im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
+
+            p0 = alt_lines[1][0].point
+            p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+
+            p1 = alt_lines[1][1].point
+            p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
+            # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
+
+            start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
+            end_scaled = (end_point.x*scale+shift,end_point.y*scale+shift)
+            im_draw.line([start_scaled,end_scaled], (0,0,255), 5)
+            # im_draw.line([start_point.x,start_point.y,end_point.x,end_point.y],fill=(0,0,0))
+            # waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
+            # waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
+
+        im.save('paths.jpg')
+        # im.show()
 
         #
         for point in waypoints:
@@ -188,22 +220,36 @@ class Run:
             m1 = 0
         elif (end_point.y == start_point.y):    # check for horizontal line
             # no value of m1 makes sense, have to compute by hand
-            # perpendicular line is vertical: add or subtract to x, keep same y
-            x1_plus_start = x0 + d
-            x1_plus_end = x0 + d
-            y1_plus_start = max(start_point.y, end_point.y)
-            y1_plus_end = min(start_point.y, end_point.y)
+            # perpendicular line is vertical: add or subtract to y, keep same x
+            x1_plus_start = min(start_point.x, end_point.x)
+            x1_plus_end = max(start_point.x, end_point.x)
+            y1_plus_start = start_point.y + d
+            y1_plus_end = end_point.y + d
 
-            x1_minus_start = x0 - d
-            x1_minus_end = x0 - d
-            y1_minus_start = y1_plus_end
-            y1_minus_end = y1_plus_start
+            x1_minus_start = max(start_point.x,end_point.x)
+            x1_minus_end = min(start_point.x,end_point.x)
+            y1_minus_start = y0 - d
+            y1_minus_end = y0 - d
+
+            # x1_plus_start = x0 + d
+            # x1_plus_end = x0 + d
+            # y1_plus_start = max(start_point.y, end_point.y)
+            # y1_plus_end = min(start_point.y, end_point.y)
+
+            # x1_minus_start = x0 - d
+            # x1_minus_end = x0 - d
+            # y1_minus_start = y1_plus_end
+            # y1_minus_end = y1_plus_start
 
             plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
             plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
 
             minus_start_wp = Waypoint(x1_minus_start, y1_minus_start, start_point.color, False)
             minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
+
+            print("Original line: (%f,%f)->(%f,%f)" % (start_point.x, start_point.y, end_point.x, end_point.y))
+            print("Plusle: (%f,%f)->(%f,%f)" % (plus_start_wp.x, plus_start_wp.y, plus_end_wp.x, plus_end_wp.y))
+            print("Minun: (%f,%f)->(%f,%f)" % (minus_start_wp.x, minus_start_wp.y, minus_end_wp.x, minus_end_wp.y))
 
             return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
 
@@ -220,12 +266,15 @@ class Run:
         y1_minus_start = 0
         y1_minus_end = 0
 
-        if m1 <= 0:
+        # original line sloping up
+        if m1 < 0:
             p0 = None
             if (start_point.x < end_point.x):
                 p0 = start_point
             else:
                 p0 = end_point
+
+            # p0 = end_point
 
             x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
             y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
@@ -236,17 +285,21 @@ class Run:
                 p0 = end_point
             else:
                 p0 = start_point
+
+            # p0 = start_point
             
             x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
             y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
             x1_minus_start = p0.x - d * math.sqrt(1/(1+m1**2))
             y1_minus_start = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
-        else:
+        else:   # original line sloping down
             p0 = None
             if (start_point.x < end_point.x):
                 p0 = start_point
             else:
                 p0 = end_point
+
+            # p0 = start_point
 
             x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
             y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
@@ -257,6 +310,8 @@ class Run:
                 p0 = end_point
             else:
                 p0 = start_point
+
+            # p0 = end_point
             
             x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
             y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
@@ -267,8 +322,5 @@ class Run:
         plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
         minus_start_wp = Waypoint(x1_minus_start, y1_minus_start, start_point.color, False)
         minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
-
-        print("Original line: (%f,%f)->(%f,%f)" % (start_point.x, start_point.y, end_point.x, end_point.y))
-        print("Plusle: (%f,%f)->(%f,%f)" % (plus_start_wp.x, plus_start_wp.y, plus_end_wp.x, plus_end_wp.y))
 
         return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
