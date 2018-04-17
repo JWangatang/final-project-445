@@ -9,6 +9,8 @@ import odometry
 import pid_controller_soln
 import math
 
+#from collections import defaultdict
+
 # Pen Color RGB Values
 color_dict = {"black": (0.0, 0.0, 0.0),
               "red": (1.0, 0.0, 0.0),
@@ -23,6 +25,12 @@ class Waypoint:
         self.y = y
         self.color = color
         self.use_pen = use_pen
+
+    def to_string(waypoint):
+        return "x: " + str(waypoint.x) + \
+               " y: " + str(waypoint.y) + \
+               " color: " + waypoint.color + \
+               " use_pen: " + str(waypoint.use_pen)
 
 
 class Run:
@@ -72,23 +80,138 @@ class Run:
         waypoints = []
 
         # Process image, add points
-        for path in self.img.paths:
-            color = color_dict[path.color]
-            waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
-            # Bezier curves
-            for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
-                    # print(path.eval(i,t*0.1))
-                    waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
+        # for path in self.img.paths:
+        #     color = color_dict[path.color]
+        #     waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
+        #     # Bezier curves
+        #     for i in range(len(path.beziers)):
+        #         for t in range(1, 10):
+        #             curr_point = path.eval(i, t*0.1)
+        #             # print(path.eval(i,t*0.1))
+        #             waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
+
+        # Dictionary grouping lines by color
+        # {color : [(start_point, end_point), ... ]}
+        line_color_dic = {}
+        line_colors_left = []
 
         # Decompose lines into waypoints
         for line in self.img.lines:
-            color = color_dict[line.color]
-            waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
-            waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
+            line_colors_left.append(line.color)
+            # Create dictionary of color and list of start/end points of lines
+            rgb_value = color_dict[line.color]
 
-        #
+            if line.color in line_color_dic:
+                line_color_dic[line.color].append((Waypoint(line.u[0], line.u[1], rgb_value, False),
+                                              Waypoint(line.v[0], line.v[1], rgb_value, True)));
+            else:
+                line_color_dic[line.color] = [(Waypoint(line.u[0], line.u[1], rgb_value, False),
+                                              Waypoint(line.v[0], line.v[1], rgb_value, True))]
+
+        curr_color = line_colors_left[0]
+        line_colors_left.remove(curr_color)
+
+        waypoints.append(line_color_dic[curr_color][0])
+        waypoints.append(line_color_dic[curr_color][1])
+        curr_point = line_color_dic[curr_color][1]
+
+
+
+        while True:
+
+            copied_list = []
+            if not line_color_dic[curr_color]:
+                #cu
+                pass
+
+
+        for color in line_color_dic:
+            # list is not empty
+            if not line_color_dic[color]:
+                closest_line = None
+                shortest_dist = None
+
+                for line in line_color_dic[color]:
+                    if closest_line is None:
+                        closest_line = line
+
+                        continue
+                    else:
+                        pass
+
+
+                    # line is a tuple
+                    start_point = line[0]
+                    end_point = line[1]
+
+                    if self.distance_between_points(start_point, curr_point) < self.distance_between_points(end_point, curr_point):
+                        waypoints.append(start_point)
+                        waypoints.append(end_point)
+                        curr_point = end_point
+                    else:
+                        waypoints.append(end_point)
+                        waypoints.append(start_point)
+                        curr_point = start_point
+
+
+                pass
+
+            continue
+
+
+
+            print(first_start_point.x, first_start_point.y)
+
+
+            #print(color)
+            #print(line_color_dic[color])
+
+        #print(line_color_dic)
+        input("...")
+
+        '''
+        1) Create dictionary of color and list of start/end points of lines
+            - dictionary: [color, [(start point of line, end point of line), ...]
+            
+        2) waypoints = finished list of points
+        
+        curr_point = last point added to waypoints
+        curr_color = last color added to waypoints
+        
+        while True
+            copied
+        
+        
+            if the list of points for the current color is not empty:
+                find the closest point in the list to the current point
+                add to waypoints
+                remove points **  
+                update current point
+            
+                
+        
+        
+        
+        
+        
+            
+        3) Take first line l in dictionary of a color
+            a) remove l from dictionary
+            b) add start/end of l to waypoints
+            
+        4/c) While there are lines in dictionary of the same color
+            i) find closest point (start or end) to end point of l
+            ii) if the closest point is end:
+                - reverse start/end points in dictionary
+            iii) repeat c
+        5/d) take last end point and closest point (start and end) of lines in dictionary
+            i) if closest is end, reverse points in dictionary
+            ii) Repeat a for all lines of that color
+        '''
+
+        # Previous pen color stored to indicate color changes
+        prev_pen_color = waypoints[0].color
+
         for point in waypoints:
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + 2
@@ -97,6 +220,12 @@ class Run:
             color = point.color
             self.penholder.set_color(color[0], color[1], color[2])
             self.raise_pen()
+
+            # Pauses to change pen. Runs again when 'enter' is pressed
+            # Note: can be commented out for simulation
+            if prev_pen_color is not color:
+                self.change_pen_color(color)
+                prev_pen_color = color
 
             while True:
                 # Take odometry and camera readings
@@ -155,10 +284,16 @@ class Run:
     def lower_pen(self):
         self.penholder.go_to(-0.025)
 
+    def change_pen_color(self, color):
+        for name, rgb in color_dict.items():  # for name, age in list.items():  (for Python 3.x)
+            if rgb is color:
+                input("Change pen color to: " + str(name))
+
     # Returns True if obstacle is in the robot's path
     def path_is_valid(self, start_point, end_point):
         robot_width_mm = 348.5
         pass
 
-    def closest_point(self):
-        pass
+    # Distance between 2 Waypoints
+    def distance_between_points(self, p1, p2):
+        return math.sqrt(math.pow(p2.x - p1.x, 2) + math.pow(p2.y - p2.y, 2))
