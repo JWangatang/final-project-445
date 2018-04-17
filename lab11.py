@@ -124,6 +124,9 @@ class Run:
         im.save('paths.jpg')
         # im.show()
 
+        # Previous pen color stored to indicate color changes
+        prev_pen_color = waypoints[0].color
+
         #
         for point in waypoints:
             # Time for robot to turn before moving to point
@@ -133,6 +136,12 @@ class Run:
             color = point.color
             self.penholder.set_color(color[0], color[1], color[2])
             self.raise_pen()
+
+            # Pauses to change pen. Runs again when 'enter' is pressed
+            # Note: can be commented out for simulation
+            if prev_pen_color is not color:
+                self.change_pen_color(color)
+                prev_pen_color = color
 
             while True:
                 # Take odometry and camera readings
@@ -190,6 +199,11 @@ class Run:
 
     def lower_pen(self):
         self.penholder.go_to(-0.025)
+
+    def change_pen_color(self, color):
+        for name, rgb in color_dict.items():  # for name, age in list.items():  (for Python 3.x)
+            if rgb is color:
+                input("Change pen color to: " + str(name))
 
     # Returns True if obstacle is in the robot's path
     def path_is_valid(self, start_point, end_point):
