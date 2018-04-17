@@ -62,6 +62,15 @@ class Run:
             create2.Sensor.RightEncoderCounts,
         ])
 
+        # while 1:
+        #     self.lower_pen()
+        #     self.time.sleep(2)
+        #     self.raise_pen()
+        #     self.time.sleep(2)
+
+        # while 1:
+        #     self.create.drive_direct(100,100)
+
         # Alpha value for Complementary Filtering
         alpha = .7
 
@@ -93,6 +102,11 @@ class Run:
             start_point = Waypoint(line.u[0], line.u[1], color, False)
             end_point = Waypoint(line.v[0], line.v[1], color, True)
             alt_lines = self.alt_lines(start_point, end_point)
+            # waypoints.append(alt_lines[0][0])
+            # waypoints.append(alt_lines[0][1])
+            # waypoints.append(alt_lines[1][0])
+            # waypoints.append(alt_lines[1][1])
+
             waypoints.append(alt_lines[0][0])
             waypoints.append(alt_lines[0][1])
             # waypoints.append(alt_lines[1][0])
@@ -100,18 +114,18 @@ class Run:
 
             scale = 100
             shift = 100
-            p0 = alt_lines[0][0].point
-            p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
-
-            p1 = alt_lines[0][1].point
-            p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-            im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
-
             p0 = alt_lines[1][0].point
             p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
 
             p1 = alt_lines[1][1].point
             p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
+            im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
+
+            # p0 = alt_lines[1][0].point
+            # p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+
+            # p1 = alt_lines[1][1].point
+            # p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
             # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
 
             start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
@@ -124,10 +138,12 @@ class Run:
         im.save('paths.jpg')
         # im.show()
 
+        turn_delta_t = 5
         #
         for point in waypoints:
+            print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
-            turn_time = self.time.time() + 2
+            turn_time = self.time.time() + turn_delta_t
 
             # Set color, raise pen until robot reaches point
             color = point.color
@@ -137,7 +153,7 @@ class Run:
             while True:
                 # Take odometry and camera readings
                 state = self.create.update()
-                r = self.tracker.query()
+                # r = self.tracker.query()
 
                 # Update the odometry
                 if state is not None:
@@ -147,13 +163,13 @@ class Run:
                     theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
 
                     # Apply Complementary Filter with camera reading
-                    if r is not None:
-                        x *= alpha
-                        y *= alpha
-                        theta *= alpha
-                        x += (1 - alpha) * r["position"]["x"]
-                        y += (1 - alpha) * r["position"]["y"]
-                        theta += (1 - alpha) * r["orientation"]["y"]
+                    # if r is not None:
+                    #     x *= alpha
+                    #     y *= alpha
+                    #     theta *= alpha
+                    #     x += (1 - alpha) * r["position"]["x"]
+                    #     y += (1 - alpha) * r["position"]["y"]
+                    #     theta += (1 - alpha) * r["orientation"]["y"]
 
                     # Calculate the desired angle so the robot faces the goal and apply controller
                     goal_theta = math.atan2(point.y - y, point.x - x)
@@ -163,6 +179,7 @@ class Run:
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
                     if distance < 0.02:
                         print("[{},{},{}]".format(x, y, math.degrees(theta)))
+                        self.create.drive_direct(0,0)
                         break
 
                     # Take the first two seconds of every waypoint to orient towards the goal
@@ -209,53 +226,57 @@ class Run:
         # plus_line always starts at the "top" of og_line
         # min_line always starts at the "bottom" of og_line
         # if og_line is horizontal, plus_line starts at the left of og_line, min_line at the right
+        p0 = None
+        p1 = None
 
-        x0 = start_point.x
-        y0 = start_point.y
+        if start_point.x == end_point.x:
+            if start_point.y < end_point.y:
+                p0 = (start_point.x,start_point.y)
+                p1 = (end_point.x,end_point.y)
+            else:
+                p0 = (end_point.x,end_point.y)
+                p1 = (start_point.x,start_point.y)
+        elif start_point.x < end_point.x:
+            p0 = (start_point.x,start_point.y)
+            p1 = (end_point.x,end_point.y)
+        else:
+            p0 = (end_point.x,end_point.y)
+            p1 = (start_point.x,start_point.y)
 
-        m1 = 0 # default value assumes vertical line
+        m_perp = 0 # default value assumes vertical line
         if (end_point.x == start_point.x and end_point.y == start_point.y):
             return None
         elif (end_point.x == start_point.x):  # check for vertical line
-            m1 = 0
+            m_perp = 0
         elif (end_point.y == start_point.y):    # check for horizontal line
-            # no value of m1 makes sense, have to compute by hand
+            # can't just take -1/m_og because that has div by 0, have to compute by hand
             # perpendicular line is vertical: add or subtract to y, keep same x
-            x1_plus_start = min(start_point.x, end_point.x)
-            x1_plus_end = max(start_point.x, end_point.x)
-            y1_plus_start = start_point.y + d
-            y1_plus_end = end_point.y + d
+            plus_start = (p0[0], p0[1] + d)
+            plus_end = (p1[0], p1[1] + d)
+            minus_start = (p1[0], p1[1] - d)
+            minus_end = (p0[0], p0[1] - d)
+            # x1_plus_start = p0[0]
+            # x1_plus_end = p1[0]
+            # y1_plus_start = p0[1] + d
+            # y1_plus_end = p1[1] + d
 
-            x1_minus_start = max(start_point.x,end_point.x)
-            x1_minus_end = min(start_point.x,end_point.x)
-            y1_minus_start = y0 - d
-            y1_minus_end = y0 - d
+            plus_start_wp = Waypoint(plus_start[0],plus_start[1],start_point.color, False)
+            plus_end_wp = Waypoint(plus_end[0],plus_end[1],start_point.color,True)
+            # plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
+            # plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
 
-            # x1_plus_start = x0 + d
-            # x1_plus_end = x0 + d
-            # y1_plus_start = max(start_point.y, end_point.y)
-            # y1_plus_end = min(start_point.y, end_point.y)
+            minus_start_wp = Waypoint(minus_start[0],minus_start[1],start_point.color, False)
+            minus_end_wp = Waypoint(minus_end[0],minus_end[1],start_point.color,True)
 
-            # x1_minus_start = x0 - d
-            # x1_minus_end = x0 - d
-            # y1_minus_start = y1_plus_end
-            # y1_minus_end = y1_plus_start
-
-            plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
-            plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
-
-            minus_start_wp = Waypoint(x1_minus_start, y1_minus_start, start_point.color, False)
-            minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
-
-            print("Original line: (%f,%f)->(%f,%f)" % (start_point.x, start_point.y, end_point.x, end_point.y))
-            print("Plusle: (%f,%f)->(%f,%f)" % (plus_start_wp.x, plus_start_wp.y, plus_end_wp.x, plus_end_wp.y))
-            print("Minun: (%f,%f)->(%f,%f)" % (minus_start_wp.x, minus_start_wp.y, minus_end_wp.x, minus_end_wp.y))
+            # print("Original line: (%f,%f)->(%f,%f)" % (start_point.x, start_point.y, end_point.x, end_point.y))
+            # print("Plusle: (%f,%f)->(%f,%f)" % (plus_start_wp.x, plus_start_wp.y, plus_end_wp.x, plus_end_wp.y))
+            # print("Minun: (%f,%f)->(%f,%f)" % (minus_start_wp.x, minus_start_wp.y, minus_end_wp.x, minus_end_wp.y))
 
             return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
 
         else:
-            m0 = float(end_point.y - start_point.y)/(end_point.x)-(start_point.x)
-            m1 = -1/m0
+            m0 = float(end_point.y - start_point.y)/((end_point.x)-(start_point.x))
+            m_perp = -1/m0
 
         x1_plus_start = 0
         x1_plus_end = 0
@@ -267,56 +288,27 @@ class Run:
         y1_minus_end = 0
 
         # original line sloping up
-        if m1 < 0:
-            p0 = None
-            if (start_point.x < end_point.x):
-                p0 = start_point
-            else:
-                p0 = end_point
-
-            # p0 = end_point
-
-            x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
-            y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
-            x1_minus_end = p0.x - d * math.sqrt(1/(1+m1**2))
-            y1_minus_end = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
-
-            if (start_point.x < end_point.x):
-                p0 = end_point
-            else:
-                p0 = start_point
-
-            # p0 = start_point
+        if m_perp <= 0:
+            x1_plus_start = p1[0] + d * math.sqrt(1/(1+m_perp**2))
+            y1_plus_start = p1[1] + m_perp * d * math.sqrt(1/(1+m_perp**2))
+            x1_minus_end = p1[0] - d * math.sqrt(1/(1+m_perp**2))
+            y1_minus_end = p1[1] - m_perp * d * math.sqrt(1/(1+m_perp**2))
             
-            x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
-            y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
-            x1_minus_start = p0.x - d * math.sqrt(1/(1+m1**2))
-            y1_minus_start = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+            x1_plus_end = p0[0] + d * math.sqrt(1/(1+m_perp**2))
+            y1_plus_end = p0[1] + m_perp * d * math.sqrt(1/(1+m_perp**2))
+            x1_minus_start = p0[0] - d * math.sqrt(1/(1+m_perp**2))
+            y1_minus_start = p0[1] - m_perp * d * math.sqrt(1/(1+m_perp**2))
+
         else:   # original line sloping down
-            p0 = None
-            if (start_point.x < end_point.x):
-                p0 = start_point
-            else:
-                p0 = end_point
+            x1_plus_start = p0[0] + d * math.sqrt(1/(1+m_perp**2))
+            y1_plus_start = p0[1] + m_perp * d * math.sqrt(1/(1+m_perp**2))
+            x1_minus_end = p0[0] - d * math.sqrt(1/(1+m_perp**2))
+            y1_minus_end = p0[1] - m_perp * d * math.sqrt(1/(1+m_perp**2))
 
-            # p0 = start_point
-
-            x1_plus_start = p0.x + d * math.sqrt(1/(1+m1**2))
-            y1_plus_start = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
-            x1_minus_end = p0.x - d * math.sqrt(1/(1+m1**2))
-            y1_minus_end = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
-
-            if (start_point.x < end_point.x):
-                p0 = end_point
-            else:
-                p0 = start_point
-
-            # p0 = end_point
-            
-            x1_plus_end = p0.x + d * math.sqrt(1/(1+m1**2))
-            y1_plus_end = p0.y + m1 * d * math.sqrt(1/(1+m1**2))
-            x1_minus_start = p0.x - d * math.sqrt(1/(1+m1**2))
-            y1_minus_start = p0.y - m1 * d * math.sqrt(1/(1+m1**2))
+            x1_plus_end = p1[0] + d * math.sqrt(1/(1+m_perp**2))
+            y1_plus_end = p1[1] + m_perp * d * math.sqrt(1/(1+m_perp**2))
+            x1_minus_start = p1[0] - d * math.sqrt(1/(1+m_perp**2))
+            y1_minus_start = p1[1] - m_perp * d * math.sqrt(1/(1+m_perp**2))
 
         plus_start_wp = Waypoint(x1_plus_start, y1_plus_start, start_point.color, False)
         plus_end_wp = Waypoint(x1_plus_end, y1_plus_end, end_point.color, True)
@@ -324,3 +316,5 @@ class Run:
         minus_end_wp = Waypoint(x1_minus_end, y1_minus_end, end_point.color, True)
 
         return ((plus_start_wp,plus_end_wp),(minus_start_wp,minus_end_wp))
+
+        # return (plus_start_wp,plus_end_wp)
