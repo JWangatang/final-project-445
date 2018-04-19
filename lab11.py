@@ -158,9 +158,12 @@ class Run:
                 # Update the odometry
                 if state is not None:
                     self.odometry.update(state.leftEncoderCounts, state.rightEncoderCounts)
-                    x += self.odometry.delta_d * math.cos(self.odometry.last_theta)
-                    y += self.odometry.delta_d * math.sin(self.odometry.last_theta)
-                    theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
+                    # x += self.odometry.delta_d * math.cos(self.odometry.last_theta)
+                    # y += self.odometry.delta_d * math.sin(self.odometry.last_theta)
+                    # theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
+                    x = self.odometry.x
+                    y = self.odometry.y
+                    theta = self.odometry.theta
 
                     # Apply Complementary Filter with camera reading
                     # if r is not None:
