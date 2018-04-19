@@ -82,63 +82,123 @@ class Run:
         # Points for the robot to travel to
         waypoints = []
 
-        # Process image, add points
-        # for path in self.img.paths:
-        #     color = color_dict[path.color]
-        #     waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1], color, False))
-        #     # Bezier curves
-        #     for i in range(len(path.beziers)):
-        #         for t in range(1, 10):
-        #             curr_point = path.eval(i, t*0.1)
-        #             # print(path.eval(i,t*0.1))
-        #             waypoints.append(Waypoint(curr_point[0], curr_point[1], color, True))
-
         # Decompose lines into waypoints
         im = Image.new('RGB',(512,512))
         im_draw = ImageDraw.Draw(im)
 
+        black_lines = []
+        green_lines = []
+        blue_lines = []
+        red_lines = []
+
         for line in self.img.lines:
+            if line.color == "black":
+                black_lines.append(line)
+            elif line.color == "green":
+                green_lines.append(line)
+            elif line.color == "blue":
+                blue_lines.append(line)
+            elif line.color == "red":
+                red_lines.append(line)
+
+        for i in range(0, len(black_lines)):
+            line = black_lines[i]
             color = color_dict[line.color]
             start_point = Waypoint(line.u[0], line.u[1], color, False)
             end_point = Waypoint(line.v[0], line.v[1], color, True)
             alt_lines = self.alt_lines(start_point, end_point)
-            # waypoints.append(alt_lines[0][0])
-            # waypoints.append(alt_lines[0][1])
-            # waypoints.append(alt_lines[1][0])
-            # waypoints.append(alt_lines[1][1])
+            waypoints.append(alt_lines[1-i][0]);
+            waypoints.append(alt_lines[1-i][1])
 
-            waypoints.append(alt_lines[0][0])
-            waypoints.append(alt_lines[0][1])
-            # waypoints.append(alt_lines[1][0])
-            # waypoints.append(alt_lines[1][1])
+        for i in range(0, len(green_lines)):
+            line = green_lines[i]
+            color = color_dict[line.color]
+            start_point = Waypoint(line.u[0], line.u[1], color, False)
+            end_point = Waypoint(line.v[0], line.v[1], color, True)
+            alt_lines = self.alt_lines(start_point, end_point)
+            waypoints.append(alt_lines[1][0])
+            waypoints.append(alt_lines[1][1])
 
-            scale = 100
-            shift = 100
-            p0 = alt_lines[1][0].point
-            p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+        for i in range(0, len(blue_lines)):
+            line = blue_lines[i]
+            color = color_dict[line.color]
+            start_point = Waypoint(line.u[0], line.u[1], color, False)
+            end_point = Waypoint(line.v[0], line.v[1], color, True)
+            alt_lines = self.alt_lines(start_point, end_point)
+            if i == 0:
+                waypoints.append(alt_lines[1][0])
+                waypoints.append(alt_lines[1][1])
+            else:
+                waypoints.append(alt_lines[0][0])
+                waypoints.append(alt_lines[0][1])
 
-            p1 = alt_lines[1][1].point
-            p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-            im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
+        red_lines.reverse()
 
-            # p0 = alt_lines[1][0].point
-            # p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+        for i in range(0, len(red_lines)):
+            line = red_lines[i]
+            color = color_dict[line.color]
+            start_point = Waypoint(line.u[0], line.u[1], color, False)
+            end_point = Waypoint(line.v[0], line.v[1], color, True)
+            alt_lines = self.alt_lines(start_point, end_point)
+            waypoints.append(alt_lines[1-i][0])
+            waypoints.append(alt_lines[1-i][1])
 
-            # p1 = alt_lines[1][1].point
-            # p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-            # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
+        # Process image, add points
+        for path in self.img.paths:
+            color = color_dict[path.color]
+            d = 348.5/2/1000
+            waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1] + d, color, False))
+            # Bezier curves
+            for i in range(len(path.beziers)):
+                for t in range(1, 10):
+                    curr_point = path.eval(i, t*0.1)
+                    # print(path.eval(i,t*0.1))
+                    waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
-            start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
-            end_scaled = (end_point.x*scale+shift,end_point.y*scale+shift)
-            im_draw.line([start_scaled,end_scaled], (0,0,255), 5)
-            # im_draw.line([start_point.x,start_point.y,end_point.x,end_point.y],fill=(0,0,0))
-            # waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
-            # waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
 
-        im.save('paths.jpg')
+        # for line in self.img.lines:
+        #     color = color_dict[line.color]
+        #     start_point = Waypoint(line.u[0], line.u[1], color, False)
+        #     end_point = Waypoint(line.v[0], line.v[1], color, True)
+        #     alt_lines = self.alt_lines(start_point, end_point)
+        #     # waypoints.append(alt_lines[0][0])
+        #     # waypoints.append(alt_lines[0][1])
+        #     # waypoints.append(alt_lines[1][0])
+        #     # waypoints.append(alt_lines[1][1])
+
+        #     # 1 gives minus, 0 gives plus
+        #     waypoints.append(alt_lines[0][0])
+        #     waypoints.append(alt_lines[0][1])
+        #     # waypoints.append(alt_lines[1][0])
+        #     # waypoints.append(alt_lines[1][1])
+
+        #     scale = 100
+        #     shift = 100
+        #     p0 = alt_lines[1][0].point
+        #     p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+
+        #     p1 = alt_lines[1][1].point
+        #     p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
+        #     im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
+
+        #     # p0 = alt_lines[1][0].point
+        #     # p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
+
+        #     # p1 = alt_lines[1][1].point
+        #     # p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
+        #     # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
+
+        #     start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
+        #     end_scaled = (end_point.x*scale+shift,end_point.y*scale+shift)
+        #     im_draw.line([start_scaled,end_scaled], (0,0,255), 5)
+        #     # im_draw.line([start_point.x,start_point.y,end_point.x,end_point.y],fill=(0,0,0))
+        #     # waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
+        #     # waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
+
+        # im.save('paths.jpg')
         # im.show()
 
-        turn_delta_t = 5
+        turn_delta_t = 2
         #
         for point in waypoints:
             print("Going to %f,%f" % (point.x,point.y))
