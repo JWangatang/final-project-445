@@ -223,13 +223,14 @@ class Run:
                     theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
 
                     # Apply Complementary Filter with camera reading
-                    # if r is not None:
-                    #     x *= alpha
-                    #     y *= alpha
-                    #     theta *= alpha
-                    #     x += (1 - alpha) * r["position"]["x"]
-                    #     y += (1 - alpha) * r["position"]["y"]
-                    #     theta += (1 - alpha) * r["orientation"]["y"]
+                    if r is not None:
+                        print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
+                        # x *= alpha
+                        # y *= alpha
+                        # theta *= alpha
+                        # x += (1 - alpha) * r["position"]["x"]
+                        # y += (1 - alpha) * r["position"]["y"]
+                        # theta += (1 - alpha) * r["orientation"]["y"]
 
                     # Calculate the desired angle so the robot faces the goal and apply controller
                     goal_theta = math.atan2(point.y - y, point.x - x)
