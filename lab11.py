@@ -42,8 +42,10 @@ class Run:
         self.tracker = factory.create_tracker(1, sd_x=0.01, sd_y=0.01, sd_theta=0.01, rate=10)
 
         # Controllers for Odometry
-        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
+        # self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
+        # self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
+        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-300, 300], is_angle=True)
+        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-300, 300], is_angle=False)
 
         # Pen Holder - raises and lowers pen
         self.penholder = factory.create_pen_holder()
@@ -72,7 +74,8 @@ class Run:
         #     self.create.drive_direct(100,100)
 
         # Alpha value for Complementary Filtering
-        alpha = .7
+        # alpha = .7
+        alpha = .6
 
         # Keep track globally and take into account camera reading when we get one
         x = self.odometry.x
@@ -150,53 +153,10 @@ class Run:
             waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1] + d, color, False))
             # Bezier curves
             for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
+                for t in range(1, 5):
+                    curr_point = path.eval(i, t*0.25)
                     # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
-
-
-        # for line in self.img.lines:
-        #     color = color_dict[line.color]
-        #     start_point = Waypoint(line.u[0], line.u[1], color, False)
-        #     end_point = Waypoint(line.v[0], line.v[1], color, True)
-        #     alt_lines = self.alt_lines(start_point, end_point)
-        #     # waypoints.append(alt_lines[0][0])
-        #     # waypoints.append(alt_lines[0][1])
-        #     # waypoints.append(alt_lines[1][0])
-        #     # waypoints.append(alt_lines[1][1])
-
-        #     # 1 gives minus, 0 gives plus
-        #     waypoints.append(alt_lines[0][0])
-        #     waypoints.append(alt_lines[0][1])
-        #     # waypoints.append(alt_lines[1][0])
-        #     # waypoints.append(alt_lines[1][1])
-
-        #     scale = 100
-        #     shift = 100
-        #     p0 = alt_lines[1][0].point
-        #     p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
-
-        #     p1 = alt_lines[1][1].point
-        #     p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-        #     im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
-
-        #     # p0 = alt_lines[1][0].point
-        #     # p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
-
-        #     # p1 = alt_lines[1][1].point
-        #     # p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-        #     # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
-
-        #     start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
-        #     end_scaled = (end_point.x*scale+shift,end_point.y*scale+shift)
-        #     im_draw.line([start_scaled,end_scaled], (0,0,255), 5)
-        #     # im_draw.line([start_point.x,start_point.y,end_point.x,end_point.y],fill=(0,0,0))
-        #     # waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
-        #     # waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
-
-        # im.save('paths.jpg')
-        # im.show()
 
         turn_delta_t = 2
         #
@@ -213,7 +173,7 @@ class Run:
             while True:
                 # Take odometry and camera readings
                 state = self.create.update()
-                # r = self.tracker.query()
+                r = self.tracker.query()
 
                 # Update the odometry
                 if state is not None:
@@ -224,13 +184,13 @@ class Run:
 
                     # Apply Complementary Filter with camera reading
                     if r is not None:
-                        print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
-                        # x *= alpha
-                        # y *= alpha
-                        # theta *= alpha
-                        # x += (1 - alpha) * r["position"]["x"]
-                        # y += (1 - alpha) * r["position"]["y"]
-                        # theta += (1 - alpha) * r["orientation"]["y"]
+                        # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
+                        x *= alpha
+                        y *= alpha
+                        theta *= alpha
+                        x += (1 - alpha) * r["position"]["x"]
+                        y += (1 - alpha) * r["position"]["y"]
+                        theta += (1 - alpha) * r["orientation"]["y"]
 
                     # Calculate the desired angle so the robot faces the goal and apply controller
                     goal_theta = math.atan2(point.y - y, point.x - x)
@@ -256,7 +216,10 @@ class Run:
 
                     # Apply controller to distance and drive
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
-                    self.create.drive_direct(int(output_theta + output_distance), int(-output_theta + output_distance))
+                    theta_factor = 0.4
+                    if (distance < 0.1):
+                        theta_factor = 0
+                    self.create.drive_direct(int(output_theta*theta_factor + output_distance), int(-output_theta*theta_factor + output_distance))
                     self.time.sleep(.01)
 
         while True:
