@@ -8,6 +8,7 @@ import lab11_image
 import odometry
 import pid_controller_soln
 import math
+import pyscreenshot as ImageGrab
 
 from PIL import Image, ImageDraw
 
@@ -28,7 +29,7 @@ class Waypoint:
         self.point = (x,y)
 
 class Run:
-    def __init__(self, factory):
+    def __init__(self, factory, test_settings):
         """Constructor.
 
         Args:
@@ -36,14 +37,29 @@ class Run:
         """
         self.create = factory.create_create()
         self.time = factory.create_time_helper()
+        self.factory = factory
+
+        self.run_number = test_settings.run_number
+        self.theta_values = test_settings.theta_values
+        self.dist_values = test_settings.dist_values
+        self.theta_range = test_settings.theta_range
+        self.dist_range = test_settings.dist_range
+        self.turn_delta_t = test_settings.turn_delta
 
         # Sensors
         self.odometry = odometry.Odometry()
         self.tracker = factory.create_tracker(1, sd_x=0.01, sd_y=0.01, sd_theta=0.01, rate=10)
 
         # Controllers for Odometry
-        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
+        self.pidTheta = pid_controller_soln.PIDController(self.theta_values[0],
+                                                          self.theta_values[1],
+                                                          self.theta_values[2],
+                                                          [-10, 10], self.theta_range, is_angle=True)
+
+        self.pidDistance = pid_controller_soln.PIDController(self.dist_values[0],
+                                                             self.dist_values[1],
+                                                             self.dist_values[2],
+                                                             [0, 0], self.dist_range, is_angle=False)
 
         # Pen Holder - raises and lowers pen
         self.penholder = factory.create_pen_holder()
@@ -52,7 +68,7 @@ class Run:
         self.img = lab11_image.VectorImage("lab11_img1.yaml")
 
     def run(self):
-
+        run_start_time = self.time.time()
         self.create.start()
         self.create.safe()
 
@@ -61,15 +77,6 @@ class Run:
             create2.Sensor.LeftEncoderCounts,
             create2.Sensor.RightEncoderCounts,
         ])
-
-        # while 1:
-        #     self.lower_pen()
-        #     self.time.sleep(2)
-        #     self.raise_pen()
-        #     self.time.sleep(2)
-
-        # while 1:
-        #     self.create.drive_direct(100,100)
 
         # Alpha value for Complementary Filtering
         alpha = .7
@@ -119,91 +126,46 @@ class Run:
             waypoints.append(alt_lines[1][0])
             waypoints.append(alt_lines[1][1])
 
-        for i in range(0, len(blue_lines)):
-            line = blue_lines[i]
-            color = color_dict[line.color]
-            start_point = Waypoint(line.u[0], line.u[1], color, False)
-            end_point = Waypoint(line.v[0], line.v[1], color, True)
-            alt_lines = self.alt_lines(start_point, end_point)
-            if i == 0:
-                waypoints.append(alt_lines[1][0])
-                waypoints.append(alt_lines[1][1])
-            else:
-                waypoints.append(alt_lines[0][0])
-                waypoints.append(alt_lines[0][1])
-
-        red_lines.reverse()
-
-        for i in range(0, len(red_lines)):
-            line = red_lines[i]
-            color = color_dict[line.color]
-            start_point = Waypoint(line.u[0], line.u[1], color, False)
-            end_point = Waypoint(line.v[0], line.v[1], color, True)
-            alt_lines = self.alt_lines(start_point, end_point)
-            waypoints.append(alt_lines[1-i][0])
-            waypoints.append(alt_lines[1-i][1])
-
-        # Process image, add points
-        for path in self.img.paths:
-            color = color_dict[path.color]
-            d = 348.5/2/1000
-            waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1] + d, color, False))
-            # Bezier curves
-            for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
-                    # print(path.eval(i,t*0.1))
-                    waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
-
-
-        # for line in self.img.lines:
+        # for i in range(0, len(blue_lines)):
+        #     line = blue_lines[i]
         #     color = color_dict[line.color]
         #     start_point = Waypoint(line.u[0], line.u[1], color, False)
         #     end_point = Waypoint(line.v[0], line.v[1], color, True)
         #     alt_lines = self.alt_lines(start_point, end_point)
-        #     # waypoints.append(alt_lines[0][0])
-        #     # waypoints.append(alt_lines[0][1])
-        #     # waypoints.append(alt_lines[1][0])
-        #     # waypoints.append(alt_lines[1][1])
+        #     if i == 0:
+        #         waypoints.append(alt_lines[1][0])
+        #         waypoints.append(alt_lines[1][1])
+        #     else:
+        #         waypoints.append(alt_lines[0][0])
+        #         waypoints.append(alt_lines[0][1])
 
-        #     # 1 gives minus, 0 gives plus
-        #     waypoints.append(alt_lines[0][0])
-        #     waypoints.append(alt_lines[0][1])
-        #     # waypoints.append(alt_lines[1][0])
-        #     # waypoints.append(alt_lines[1][1])
-
-        #     scale = 100
-        #     shift = 100
-        #     p0 = alt_lines[1][0].point
-        #     p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
-
-        #     p1 = alt_lines[1][1].point
-        #     p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-        #     im_draw.line([p0_scaled,p1_scaled], (255,0,0), 5)
-
-        #     # p0 = alt_lines[1][0].point
-        #     # p0_scaled = (p0[0]*scale+shift,p0[1]*scale+shift)
-
-        #     # p1 = alt_lines[1][1].point
-        #     # p1_scaled = (p1[0]*scale+shift,p1[1]*scale+shift)
-        #     # im_draw.line([p0_scaled,p1_scaled], (0,255,0), 5)
-
-        #     start_scaled = (start_point.x*scale+shift,start_point.y*scale+shift)
-        #     end_scaled = (end_point.x*scale+shift,end_point.y*scale+shift)
-        #     im_draw.line([start_scaled,end_scaled], (0,0,255), 5)
-        #     # im_draw.line([start_point.x,start_point.y,end_point.x,end_point.y],fill=(0,0,0))
-        #     # waypoints.append(Waypoint(line.u[0], line.u[1], color, False))
-        #     # waypoints.append(Waypoint(line.v[0], line.v[1], color, True))
-
-        # im.save('paths.jpg')
-        # im.show()
-
-        turn_delta_t = 2
+        # red_lines.reverse()
         #
+        # for i in range(0, len(red_lines)):
+        #     line = red_lines[i]
+        #     color = color_dict[line.color]
+        #     start_point = Waypoint(line.u[0], line.u[1], color, False)
+        #     end_point = Waypoint(line.v[0], line.v[1], color, True)
+        #     alt_lines = self.alt_lines(start_point, end_point)
+        #     waypoints.append(alt_lines[1-i][0])
+        #     waypoints.append(alt_lines[1-i][1])
+
+        # Process image, add points
+        # for path in self.img.paths:
+        #     color = color_dict[path.color]
+        #     d = 348.5/2/1000
+        #     waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1] + d, color, False))
+        #     # Bezier curves
+        #     for i in range(len(path.beziers)):
+        #         for t in range(1, 10):
+        #             curr_point = path.eval(i, t*0.1)
+        #             # print(path.eval(i,t*0.1))
+        #             waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
+
         for point in waypoints:
-            print("Going to %f,%f" % (point.x,point.y))
+            # print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
-            turn_time = self.time.time() + turn_delta_t
+            turn_time = self.time.time() + self.turn_delta_t
 
             # Set color, raise pen until robot reaches point
             color = point.color
@@ -223,8 +185,8 @@ class Run:
                     theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
 
                     # Apply Complementary Filter with camera reading
-                    if r is not None:
-                        print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
+                    # if r is not None:
+                        # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
                         # x *= alpha
                         # y *= alpha
                         # theta *= alpha
@@ -239,7 +201,7 @@ class Run:
                     # Check to see if we are close enough to our goal
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
                     if distance < 0.02:
-                        print("[{},{},{}]".format(x, y, math.degrees(theta)))
+                        # print("[{},{},{}]".format(x, y, math.degrees(theta)))
                         self.create.drive_direct(0,0)
                         break
 
@@ -259,9 +221,14 @@ class Run:
                     self.create.drive_direct(int(output_theta + output_distance), int(-output_theta + output_distance))
                     self.time.sleep(.01)
 
-        while True:
-            continue
+        elapsed_time = self.time.time() - run_start_time
+        print("Run time: " + str(elapsed_time) + "\n")
+
+        im = ImageGrab.grab()
+        filename = "Run_" + str(self.run_number) + ".png"
+        im.save('test_images/'+filename)
         self.create.stop()
+        return elapsed_time
 
     def raise_pen(self):
         self.penholder.go_to(0.0)
