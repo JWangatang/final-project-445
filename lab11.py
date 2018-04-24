@@ -79,7 +79,7 @@ class Run:
         ])
 
         # Alpha value for Complementary Filtering
-        alpha = .7
+        alpha = .6
 
         # Keep track globally and take into account camera reading when we get one
         x = self.odometry.x
@@ -114,7 +114,7 @@ class Run:
             start_point = Waypoint(line.u[0], line.u[1], color, False)
             end_point = Waypoint(line.v[0], line.v[1], color, True)
             alt_lines = self.alt_lines(start_point, end_point)
-            waypoints.append(alt_lines[1-i][0]);
+            waypoints.append(alt_lines[1-i][0])
             waypoints.append(alt_lines[1-i][1])
 
         for i in range(0, len(green_lines)):
@@ -153,12 +153,12 @@ class Run:
         # Process image, add points
         for path in self.img.paths:
             color = color_dict[path.color]
-            d = 348.5/2/1000
+            d = 348.5 / 2 / 1000
             waypoints.append(Waypoint(path.get_start()[0], path.get_start()[1] + d, color, False))
             # Bezier curves
             for i in range(len(path.beziers)):
-                for t in range(1, 10):
-                    curr_point = path.eval(i, t*0.1)
+                for t in range(1, 5):
+                    curr_point = path.eval(i, t * 0.25)
                     # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
@@ -175,7 +175,7 @@ class Run:
             while True:
                 # Take odometry and camera readings
                 state = self.create.update()
-                # r = self.tracker.query()
+                r = self.tracker.query()
 
                 # Update the odometry
                 if state is not None:
@@ -185,14 +185,14 @@ class Run:
                     theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
 
                     # Apply Complementary Filter with camera reading
-                    # if r is not None:
+                    if r is not None:
                         # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
-                        # x *= alpha
-                        # y *= alpha
-                        # theta *= alpha
-                        # x += (1 - alpha) * r["position"]["x"]
-                        # y += (1 - alpha) * r["position"]["y"]
-                        # theta += (1 - alpha) * r["orientation"]["y"]
+                        x *= alpha
+                        y *= alpha
+                        theta *= alpha
+                        x += (1 - alpha) * r["position"]["x"]
+                        y += (1 - alpha) * r["position"]["y"]
+                        theta += (1 - alpha) * r["orientation"]["y"]
 
                     # Calculate the desired angle so the robot faces the goal and apply controller
                     goal_theta = math.atan2(point.y - y, point.x - x)
@@ -202,7 +202,7 @@ class Run:
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
                     if distance < 0.02:
                         # print("[{},{},{}]".format(x, y, math.degrees(theta)))
-                        self.create.drive_direct(0,0)
+                        self.create.drive_direct(0, 0)
                         break
 
                     # Take the first two seconds of every waypoint to orient towards the goal
@@ -218,7 +218,11 @@ class Run:
 
                     # Apply controller to distance and drive
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
-                    self.create.drive_direct(int(output_theta + output_distance), int(-output_theta + output_distance))
+                    theta_factor = 0.4
+                    if (distance < 0.1):
+                        theta_factor = 0
+                    self.create.drive_direct(int(output_theta * theta_factor + output_distance),
+                                             int(-output_theta * theta_factor + output_distance))
                     self.time.sleep(.01)
 
         elapsed_time = self.time.time() - run_start_time

@@ -20,39 +20,42 @@ import importlib
 - Set increment to 0 to keep default value constant
 - Image results will be in test_images/
 - run_times.txt will have each run's info and run time
+
+        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-300, 300], is_angle=True)
+        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-300, 300], is_angle=False)
 '''
 
 # Number of iterations
-num_iterations = 2
+num_iterations = 1
 
 # THETA VALUES
 theta_kp = 300
-theta_kp_increment = 50
+theta_kp_increment = 0
 
 theta_ki = 5
-theta_ki_increment = 5
+theta_ki_increment = 0
 
 theta_kd = 50
-theta_kd_increment = 10
+theta_kd_increment = 0
 
 theta_range = [-180, 180]
 theta_range_increment = 0
 
 # DIST VALUES
 dist_kp = 1000
-dist_kp_increment = 50
+dist_kp_increment = 0
 
 dist_ki = 0
-dist_ki_increment = 5
+dist_ki_increment = 0
 
 dist_kd = 50
 dist_kd_increment = 0
 
-dist_range = [-200, 200]
+dist_range = [-500, 500]
 dist_range_increment = 0
 
 # TURN TIME
-turn_delta_t = 2
+turn_delta_t = 1.8
 turn_delta_t_increment = 0
 
 
@@ -100,14 +103,14 @@ if __name__ == "__main__":
                                 theta_ki + theta_ki_increment * i,
                                 theta_kd + theta_kd_increment * i]
 
-            theta_range_test = [theta_range[0] + theta_range_increment * i,
+            theta_range_test = [theta_range[0] - theta_range_increment * i,
                                 theta_range[1] + theta_range_increment * i]
 
             dist_values_test = [dist_kp + dist_kp_increment * i,
                                 dist_ki + dist_ki_increment * i,
                                 dist_kd + dist_kd_increment * i]
 
-            dist_range_test = [dist_range[0] + dist_range_increment * i,
+            dist_range_test = [dist_range[0] - dist_range_increment * i,
                                dist_range[1] + dist_range_increment * i]
 
             turn_delta_test = turn_delta_t + turn_delta_t_increment * i
