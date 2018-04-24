@@ -44,8 +44,8 @@ class Run:
         # Controllers for Odometry
         # self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
         # self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
-        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-300, 300], is_angle=True)
-        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-300, 300], is_angle=False)
+        self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
+        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-500, 500], is_angle=False)
 
         # Pen Holder - raises and lowers pen
         self.penholder = factory.create_pen_holder()
@@ -64,17 +64,7 @@ class Run:
             create2.Sensor.RightEncoderCounts,
         ])
 
-        # while 1:
-        #     self.lower_pen()
-        #     self.time.sleep(2)
-        #     self.raise_pen()
-        #     self.time.sleep(2)
-
-        # while 1:
-        #     self.create.drive_direct(100,100)
-
         # Alpha value for Complementary Filtering
-        # alpha = .7
         alpha = .6
 
         # Keep track globally and take into account camera reading when we get one
@@ -86,8 +76,8 @@ class Run:
         waypoints = []
 
         # Decompose lines into waypoints
-        im = Image.new('RGB',(512,512))
-        im_draw = ImageDraw.Draw(im)
+        # im = Image.new('RGB',(512,512))
+        # im_draw = ImageDraw.Draw(im)
 
         black_lines = []
         green_lines = []
@@ -158,13 +148,13 @@ class Run:
                     # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
-        turn_delta_t = 2
+        turn_delta_t = 1.8
         # Previous pen color stored to indicate color changes
         prev_pen_color = waypoints[0].color
 
         #
         for point in waypoints:
-            print("Going to %f,%f" % (point.x,point.y))
+            # print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + turn_delta_t
 
@@ -209,14 +199,14 @@ class Run:
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
                     if distance < 0.02:
                         print("[{},{},{}]".format(x, y, math.degrees(theta)))
-                        self.create.drive_direct(0,0)
+                        self.create.drive_direct(0, 0)
                         break
 
                     # Take the first two seconds of every waypoint to orient towards the goal
                     if turn_time > self.time.time():
-                        self.create.drive_direct(int(output_theta), int(-output_theta));
-                        self.time.sleep(.001);
-                        continue;
+                        self.create.drive_direct(int(output_theta), int(-output_theta))
+                        self.time.sleep(.001)
+                        continue
                     else:
                         if point.use_pen:
                             self.lower_pen()
@@ -245,14 +235,6 @@ class Run:
         for name, rgb in color_dict.items():  # for name, age in list.items():  (for Python 3.x)
             if rgb is color:
                 input("Change pen color to: " + str(name))
-
-    # Returns True if obstacle is in the robot's path
-    def path_is_valid(self, start_point, end_point):
-        robot_width_mm = 348.5
-        pass
-
-    def closest_point(self):
-        pass
 
     # returns two alternate lines, given a line
     # if the robot follows either of the alternate lines, the pen will trace the original line
