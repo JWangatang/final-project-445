@@ -159,11 +159,9 @@ class Run:
             for i in range(len(path.beziers)):
                 for t in range(1, 5):
                     curr_point = path.eval(i, t * 0.25)
-                    # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
         for point in waypoints:
-            # print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + self.turn_delta_t
 
@@ -186,7 +184,6 @@ class Run:
 
                     # Apply Complementary Filter with camera reading
                     if r is not None:
-                        # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
                         x *= alpha
                         y *= alpha
                         theta *= alpha
@@ -201,7 +198,6 @@ class Run:
                     # Check to see if we are close enough to our goal
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
                     if distance < 0.02:
-                        # print("[{},{},{}]".format(x, y, math.degrees(theta)))
                         self.create.drive_direct(0, 0)
                         break
 
@@ -219,7 +215,7 @@ class Run:
                     # Apply controller to distance and drive
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
                     theta_factor = 0.4
-                    if (distance < 0.1):
+                    if distance < 0.1:
                         theta_factor = 0
                     self.create.drive_direct(int(output_theta * theta_factor + output_distance),
                                              int(-output_theta * theta_factor + output_distance))
@@ -239,14 +235,6 @@ class Run:
 
     def lower_pen(self):
         self.penholder.go_to(-0.025)
-
-    # Returns True if obstacle is in the robot's path
-    def path_is_valid(self, start_point, end_point):
-        robot_width_mm = 348.5
-        pass
-
-    def closest_point(self):
-        pass
 
     # returns two alternate lines, given a line
     # if the robot follows either of the alternate lines, the pen will trace the original line
