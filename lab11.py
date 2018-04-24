@@ -1,6 +1,10 @@
 """
 Code to draw a given file
 Use "python3 run.py --sim lab11" to execute
+
+ACTUAL
+ROBOT
+CODE
 """
 from pyCreate2 import create2
 
@@ -17,7 +21,6 @@ color_dict = {"black": (0.0, 0.0, 0.0),
               "green": (0.0, 1.0, 0.0),
               "blue": (0.0, 0.0, 1.0)}
 
-
 # Points in Path Traveled
 class Waypoint:
     def __init__(self, x, y, color, use_pen):
@@ -25,7 +28,7 @@ class Waypoint:
         self.y = y
         self.color = color
         self.use_pen = use_pen
-        self.point = (x,y)
+        self.point = (x, y)
 
 class Run:
     def __init__(self, factory):
@@ -42,16 +45,15 @@ class Run:
         self.tracker = factory.create_tracker(1, sd_x=0.01, sd_y=0.01, sd_theta=0.01, rate=10)
 
         # Controllers for Odometry
-        # self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        # self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
         self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-500, 500], is_angle=False)
+        self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
 
         # Pen Holder - raises and lowers pen
         self.penholder = factory.create_pen_holder()
 
         # Image to be drawn
         self.img = lab11_image.VectorImage("lab11_img1.yaml")
+        self.pen_raised = True
 
     def run(self):
 
@@ -75,10 +77,6 @@ class Run:
         # Points for the robot to travel to
         waypoints = []
 
-        # Decompose lines into waypoints
-        # im = Image.new('RGB',(512,512))
-        # im_draw = ImageDraw.Draw(im)
-
         black_lines = []
         green_lines = []
         blue_lines = []
@@ -100,7 +98,7 @@ class Run:
             start_point = Waypoint(line.u[0], line.u[1], color, False)
             end_point = Waypoint(line.v[0], line.v[1], color, True)
             alt_lines = self.alt_lines(start_point, end_point)
-            waypoints.append(alt_lines[1-i][0]);
+            waypoints.append(alt_lines[1-i][0])
             waypoints.append(alt_lines[1-i][1])
 
         for i in range(0, len(green_lines)):
@@ -144,17 +142,17 @@ class Run:
             # Bezier curves
             for i in range(len(path.beziers)):
                 for t in range(1, 5):
-                    curr_point = path.eval(i, t*0.25)
+                    curr_point = path.eval(i, t * 0.25)
                     # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
-        turn_delta_t = 1.8
         # Previous pen color stored to indicate color changes
         prev_pen_color = waypoints[0].color
 
-        #
+        turn_delta_t = 5
+
         for point in waypoints:
-            # print("Going to %f,%f" % (point.x,point.y))
+            print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + turn_delta_t
 
@@ -172,7 +170,7 @@ class Run:
             while True:
                 # Take odometry and camera readings
                 state = self.create.update()
-                r = self.tracker.query()
+                # r = self.tracker.query()
 
                 # Update the odometry
                 if state is not None:
@@ -182,14 +180,15 @@ class Run:
                     theta = math.fmod(theta + self.odometry.delta_theta, 2 * math.pi)
 
                     # Apply Complementary Filter with camera reading
-                    if r is not None:
-                        # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
-                        x *= alpha
-                        y *= alpha
-                        theta *= alpha
-                        x += (1 - alpha) * r["position"]["x"]
-                        y += (1 - alpha) * r["position"]["y"]
-                        theta += (1 - alpha) * r["orientation"]["y"]
+                    # NOTE: No camera setup for the actual robot
+                    # if r is not None:
+                    #     # print("Got r: camera_x = %f, camera_y = %f, camera_theta = %f degrees" % (r["position"]["x"],r["position"]["y"],r["orientation"]["y"]))
+                    #     x *= alpha
+                    #     y *= alpha
+                    #     theta *= alpha
+                    #     x += (1 - alpha) * r["position"]["x"]
+                    #     y += (1 - alpha) * r["position"]["y"]
+                    #     theta += (1 - alpha) * r["orientation"]["y"]
 
                     # Calculate the desired angle so the robot faces the goal and apply controller
                     goal_theta = math.atan2(point.y - y, point.x - x)
@@ -197,7 +196,7 @@ class Run:
 
                     # Check to see if we are close enough to our goal
                     distance = math.sqrt(math.pow(point.x - x, 2) + math.pow(point.y - y, 2))
-                    if distance < 0.02:
+                    if distance < 0.05:
                         print("[{},{},{}]".format(x, y, math.degrees(theta)))
                         self.create.drive_direct(0, 0)
                         break
@@ -215,21 +214,31 @@ class Run:
 
                     # Apply controller to distance and drive
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
-                    theta_factor = 0.4
-                    if (distance < 0.1):
+                    theta_factor = 1
+                    if distance < 0.15:
                         theta_factor = 0
-                    self.create.drive_direct(int(output_theta*theta_factor + output_distance), int(-output_theta*theta_factor + output_distance))
-                    self.time.sleep(.01)
+                    self.create.drive_direct(int(output_theta * theta_factor + output_distance),
+                                             int(-output_theta * theta_factor + output_distance))
+                self.time.sleep(.015)
 
         while True:
             continue
         self.create.stop()
 
     def raise_pen(self):
+        if self.pen_raised:
+            return
         self.penholder.go_to(0.0)
+        self.pen_raised = True
 
     def lower_pen(self):
-        self.penholder.go_to(-0.025)
+        if not self.pen_raised:
+            return
+        # For actual robot
+        self.penholder.go_to(-0.05)
+        # For simulation
+        # self.penholder.go_to(-0.025)
+        self.pen_raised = False
 
     def change_pen_color(self, color):
         for name, rgb in color_dict.items():  # for name, age in list.items():  (for Python 3.x)
