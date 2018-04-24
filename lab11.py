@@ -1,6 +1,10 @@
 """
 Code to draw a given file
 Use "python3 run.py --sim lab11" to execute
+
+SIMULATION
+CODE
+
 """
 from pyCreate2 import create2
 
@@ -42,8 +46,6 @@ class Run:
         self.tracker = factory.create_tracker(1, sd_x=0.01, sd_y=0.01, sd_theta=0.01, rate=10)
 
         # Controllers for Odometry
-        # self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
-        # self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-200, 200], is_angle=False)
         self.pidTheta = pid_controller_soln.PIDController(300, 5, 50, [-10, 10], [-180, 180], is_angle=True)
         self.pidDistance = pid_controller_soln.PIDController(1000, 0, 50, [0, 0], [-500, 500], is_angle=False)
 
@@ -148,13 +150,11 @@ class Run:
                     # print(path.eval(i,t*0.1))
                     waypoints.append(Waypoint(curr_point[0], curr_point[1] + d, color, True))
 
-        turn_delta_t = 1.8
         # Previous pen color stored to indicate color changes
         prev_pen_color = waypoints[0].color
 
-        #
+        turn_delta_t = 1.8
         for point in waypoints:
-            # print("Going to %f,%f" % (point.x,point.y))
             # Time for robot to turn before moving to point
             turn_time = self.time.time() + turn_delta_t
 
@@ -165,9 +165,9 @@ class Run:
 
             # Pauses to change pen. Runs again when 'enter' is pressed
             # Note: can be commented out for simulation
-            if prev_pen_color is not color:
-                self.change_pen_color(color)
-                prev_pen_color = color
+            # if prev_pen_color is not color:
+            #     self.change_pen_color(color)
+            #     prev_pen_color = color
 
             while True:
                 # Take odometry and camera readings
@@ -216,9 +216,10 @@ class Run:
                     # Apply controller to distance and drive
                     output_distance = self.pidDistance.update(0, distance, self.time.time())
                     theta_factor = 0.4
-                    if (distance < 0.1):
+                    if distance < 0.1:
                         theta_factor = 0
-                    self.create.drive_direct(int(output_theta*theta_factor + output_distance), int(-output_theta*theta_factor + output_distance))
+                    self.create.drive_direct(int(output_theta * theta_factor + output_distance),
+                                             int(-output_theta * theta_factor + output_distance))
                     self.time.sleep(.01)
 
         while True:
